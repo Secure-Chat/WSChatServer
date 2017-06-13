@@ -1,9 +1,17 @@
+package github.io.darena3.chitchat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
 
 import org.java_websocket.WebSocket;
 
+/**
+ * A class to represent a chatroom. A Chatroom contains various data structures such as a list of nicknames
+ * of all clients currently connected and a HashMap of connections to allow nicknames to be assigned to specific
+ * connections.
+ * @author David Arena
+ *
+ */
 public class Chatroom {
 	private String name;
     private String password;

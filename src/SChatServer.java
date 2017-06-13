@@ -1,3 +1,5 @@
+package github.io.darena3.chitchat;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -34,7 +36,11 @@ import java.net.BindException;
 
 
 /**
- * A simple WebSocketServer implementation. Keeps track of a "chatroom".
+ * An implementation of a WebSocketServer. Keeps track of several concurrent chatrooms. Implements
+ * the methods of the WebSocketServer interface's defined behaviors. Processes incoming messages as JSON
+ * strings and sends back JSON strings.
+ * 
+ * TODO implement files so chatrooms can store messages and message #IDs
  */
 public class SChatServer extends WebSocketServer {
 	public List<String> names = new ArrayList<>(); //chatroom names
@@ -80,7 +86,7 @@ public class SChatServer extends WebSocketServer {
 		
 		SChatServer s = new SChatServer(port);
 		s.start();
-		System.out.println("ChatServer started on port: " + s.getPort());
+		System.out.println("SecureChatServer started on port: " + s.getPort());
 
 		BufferedReader sysin = new BufferedReader(new InputStreamReader(System.in));
 		while (true) {
@@ -132,6 +138,13 @@ public class SChatServer extends WebSocketServer {
 		}
 	}
 	
+	/**
+	 * Evaluates the given message as a JSON string and processes it based on its given type. Makes sure the user has a valid
+	 * nickname before connecting or sending messages.
+	 * @param conn
+	 * @param message
+	 * @param s
+	 */
 	public void process(WebSocket conn, String message, SChatServer s) {
 		JSON obj = new Gson().fromJson(message, JSON.class);
 		String type = obj.getType();
@@ -179,6 +192,13 @@ public class SChatServer extends WebSocketServer {
 		}
 	}
 	
+	/**
+	 * Makes sure the given nickname is not equivalent to any other nickname in use
+	 * in the given list, is not blank, or is not a reserved nickname.
+	 * @param name
+	 * @param nicknames
+	 * @return true if the nickname meets all necessary conditions, false otherwise
+	 */
 	public boolean verifyNickname(String name, List<String> nicknames) {
 		if (name == null || name.equalsIgnoreCase("SERVER")) return false;
 		for (String s : nicknames) {
@@ -188,6 +208,12 @@ public class SChatServer extends WebSocketServer {
 		return true;
 	}
 	
+	/**
+	 * Attempts to find a room to which the JSON message received should be assigned. If the
+	 * room with the given name does not yet exist, it is created.
+	 * @param obj
+	 * @return false if the JSON object received did not specify a room, true otherwise
+	 */
 	public boolean findRoom(JSON obj) {
 		if (obj.getRoom() == null) return false;
 		for (String s : names) {

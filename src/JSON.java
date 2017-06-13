@@ -1,3 +1,10 @@
+package github.io.darena3.chitchat;
+/**
+ * A JSON wrapper class to be used with handling messages. Using Google's Gson library, messages are converted
+ * into JSON objects and back into Strings to be sent back to all clients.
+ * @author David Arena
+ *
+ */
 public class JSON {
 
 	 private String type = null;
