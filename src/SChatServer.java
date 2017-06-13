@@ -37,9 +37,8 @@ import java.net.BindException;
  * A simple WebSocketServer implementation. Keeps track of a "chatroom".
  */
 public class SChatServer extends WebSocketServer {
-	public List<String> names = new ArrayList<>();
-	public List<Chatroom> rooms = new ArrayList<>();
-	//public HashMap<String, Chatroom> map = new HashMap<>();
+	public List<String> names = new ArrayList<>(); //chatroom names
+	public List<Chatroom> rooms = new ArrayList<>(); //chatrooms themselves
 	
 	public SChatServer(int port) throws UnknownHostException {
 		super(new InetSocketAddress(port));
@@ -52,19 +51,22 @@ public class SChatServer extends WebSocketServer {
 	@Override
 	public void onOpen(WebSocket conn, ClientHandshake handshake) {
 		//this.sendToAll("new connection: " + handshake.getResourceDescriptor());
-		System.out.println(conn.getRemoteSocketAddress().getAddress().getHostAddress() + " entered the room!");
+		System.out.println(conn.getRemoteSocketAddress().getAddress().getHostAddress() + " entered the server!");
 	}
 
 	@Override
 	public void onClose(WebSocket conn, int code, String reason, boolean remote) {
-		//this.sendToAll(conn + " has left the room!");
-		System.out.println(conn + " has left the room!");
+		for (Chatroom c : rooms) {
+			System.out.println("User \"" + c.conns.get(conn) + "\" has left the room \"" + c.getName() + "\".");
+			c.names.remove(c.conns.get(conn));
+			c.conns.remove(conn);
+		}
+		System.out.println(conn.getRemoteSocketAddress().getAddress().getHostAddress() + " has left the server.");
 	}
 
 	@Override
 	public void onMessage(WebSocket conn, String message) {
-		process(conn, message);
-		System.out.println(conn + ": " + message);
+		process(conn, message, this);
 	}
 
 	@Override
@@ -76,20 +78,22 @@ public class SChatServer extends WebSocketServer {
 		WebSocketImpl.DEBUG = false;
 		int port = 6789;
 		
-		ChatServer s = new ChatServer(port);
+		SChatServer s = new SChatServer(port);
 		s.start();
 		System.out.println("ChatServer started on port: " + s.getPort());
 
 		BufferedReader sysin = new BufferedReader(new InputStreamReader(System.in));
 		while (true) {
 			String in = sysin.readLine();
-			int id = Integer.parseInt(in.substring(0, in.indexOf(" ")));
-			String room = in.substring(in.indexOf(" ") + 1, in.substring(in.indexOf(" ") + 1).indexOf(" ") + in.indexOf(" ") + 1);
-			String msg = in.substring(in.indexOf(" ") + 1).substring(room.length() + 1);
-			String toSend = "{\"type\":\"message\", \"room\":\"" + room + "\", \"id\":" + id + ", \"name\":\"SERVER\", \"msg\":\"" + msg + "\"}";
-			
+			String toSend = in;
+			if (in.indexOf(" ") != -1 && in.substring(in.indexOf(" ")).indexOf(" ") != -1) {
+				int id = Integer.parseInt(in.substring(0, in.indexOf(" ")));
+				String room = in.substring(in.indexOf(" ") + 1, in.substring(in.indexOf(" ") + 1).indexOf(" ") + in.indexOf(" ") + 1);
+				String msg = in.substring(in.indexOf(" ") + 1).substring(room.length() + 1);
+				toSend = "{\"type\":\"message\", \"room\":\"" + room + "\", \"id\":" + id + ", \"name\":\"SERVER\", \"msg\":\"" + msg + "\"}";
+			}
 			s.sendToAll(toSend);
-			System.out.println("\n" + toSend);
+			System.out.println(toSend);
 			if (in.equals("exit")) {
 				s.stop();
 				break;
@@ -128,10 +132,9 @@ public class SChatServer extends WebSocketServer {
 		}
 	}
 	
-	public void process(WebSocket conn, String message) {
+	public void process(WebSocket conn, String message, SChatServer s) {
 		JSON obj = new Gson().fromJson(message, JSON.class);
 		String type = obj.getType();
-		
 		switch(type) {
 			case "connect":
 				if (findRoom(obj)) {
@@ -139,40 +142,45 @@ public class SChatServer extends WebSocketServer {
 					if (verifyNickname(obj.getName(), myRoom.names)) {
 						myRoom.names.add(obj.getName());
 						myRoom.conns.put(conn, obj.getName());
+						System.out.println(conn.getRemoteSocketAddress().getAddress().getHostAddress() + " connected with username \"" + obj.getName() + "\" to room \"" + obj.getRoom() + "\".");
 					}
 					else {
 						obj.setType("message");
 						obj.setID(myRoom.getCurrID());
 						myRoom.incID();
 						obj.setName("SERVER");
-						obj.setMsg("That nickname is already in use or is a reserved nickname.");
+						obj.setMsg("That nickname is already in use or is blank.");
 						conn.send(new Gson().toJson(obj));
+						System.out.println("Bad nickname from user " + conn.getRemoteSocketAddress().getAddress().getHostAddress());
 					}
 				}
+				break;
 			case "message":
 				if (findRoom(obj)) {
 					Chatroom myRoom = rooms.get(names.indexOf(obj.getRoom()));
 					String myName = myRoom.conns.get(conn);
-					if (verifyNickname(myName, myRoom.names)) {
+					if (myName != null && !myName.equalsIgnoreCase("SERVER")) {
 						obj.setName(myName);
 						obj.setID(myRoom.getCurrID());
 						myRoom.incID();
-						sendToAll(new Gson().toJson(obj));
+						s.sendToAll(new Gson().toJson(obj));
+						System.out.println("Message received from user \"" + obj.getName() + "\" in room \"" + obj.getRoom() + "\".");
 					}
 					else {
-						obj.setType("message");
 						obj.setID(myRoom.getCurrID());
 						myRoom.incID();
 						obj.setName("SERVER");
-						obj.setMsg("That nickname is already in use or is a reserved nickname.");
+						obj.setMsg("That user's nickname is already in use or is blank.");
 						conn.send(new Gson().toJson(obj));
+						System.out.println("Bad nickname from user " + conn.getRemoteSocketAddress().getAddress().getHostAddress());
 					}
 				}
+				break;
 		}
 	}
 	
 	public boolean verifyNickname(String name, List<String> nicknames) {
-		if (name == null) return false;
+		if (name == null || name.equalsIgnoreCase("SERVER")) return false;
 		for (String s : nicknames) {
 			if (name.equals(s))
 				return false;
@@ -181,13 +189,13 @@ public class SChatServer extends WebSocketServer {
 	}
 	
 	public boolean findRoom(JSON obj) {
-		if (obj.getName() == null) return false;
+		if (obj.getRoom() == null) return false;
 		for (String s : names) {
-			if (obj.getName().equals(s))
+			if (obj.getRoom().equals(s))
 				return true;
 		}
-		names.add(obj.getName());
-		rooms.add(new Chatroom(obj.getName()));
+		names.add(obj.getRoom());
+		rooms.add(new Chatroom(obj.getRoom()));
 		return true;
 	}
 }
