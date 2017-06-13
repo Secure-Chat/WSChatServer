@@ -14,13 +14,11 @@ public class Chatroom {
 
     Chatroom(String name) {
         this.name = name;
-        names.add("SERVER");
     }
     
     Chatroom(String name, String password) {
         this.name = name;
         this.password = password;
-        names.add("SERVER");
     }
 
     public String getName() {
