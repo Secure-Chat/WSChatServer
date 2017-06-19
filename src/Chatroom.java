@@ -18,8 +18,9 @@ public class Chatroom {
     public List<String> names = new ArrayList<>();
     public List<String> messages = new ArrayList<>();
     public HashMap<WebSocket, String> conns = new HashMap<>();
-    private int currID = 1;
+    private long lastMil = 0;
 
+    
     Chatroom(String name) {
         this.name = name;
     }
@@ -36,12 +37,21 @@ public class Chatroom {
     public String getPassword() {
         return this.password;
     }
-
-    public int getCurrID() {
-        return this.currID;
-    }
     
-    public void incID() {
-    	this.currID++;
+    synchronized public String getTime() {
+    	long currTime = System.currentTimeMillis();
+    	if (currTime > lastMil) {
+    		lastMil = currTime;
+    		return String.valueOf(currTime);
+    	}
+    	else {
+    		try {
+    			Thread.sleep(1);
+    		}
+    		catch (InterruptedException e) {
+    			e.printStackTrace();
+    		}
+    		return getTime();
+    	}
     }
 }

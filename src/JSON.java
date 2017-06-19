@@ -11,9 +11,9 @@ public class JSON {
      private String room = null;
      private String name = null;
      private String msg = null;
-     private int id = -1;
-     private int min = -1;
-     private int max = -1;
+     private String timestamp = null;
+     private String min = null;
+     private String max = null;
 
      public JSON(String type) {
          this.type = type;
@@ -35,8 +35,8 @@ public class JSON {
          return this.msg;
      }
 
-     public int getID() {
-         return this.id;
+     public String getTimestamp() {
+         return this.timestamp;
      }
      
      public void setType(String type) {
@@ -55,15 +55,15 @@ public class JSON {
          this.msg = msg;
      }
 
-     public void setID(int id) {
-         this.id = id;
+     public void setTimestamp(String id) {
+         this.timestamp = id;
      }
 
-     public void setMin(int min) {
+     public void setMin(String min) {
          this.min = min;
      }
 
-     public void setMax(int max) {
+     public void setMax(String max) {
          this.max = max;
      }
 }
